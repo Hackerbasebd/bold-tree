@@ -1,57 +1,42 @@
+interface Env {
+  AI: any;
+  MY_BUCKET: R2Bucket;
+}
+
 export default {
-  async fetch(request, env) {
-    try {
-      const inputs = {
-        prompt: "cyberpunk cat",
-      };
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const inputs = {
+      prompt: "cyberpunk cat",
+    };
 
-      console.log("Starting AI image generation...");
-      const aiResponse = await env.AI.run(
-        "@cf/stabilityai/stable-diffusion-xl-base-1.0",
-        inputs,
-      );
+    // Generate the image using Stable Diffusion
+    const imageResponse = await env.AI.run(
+      "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+      inputs
+    );
 
-      console.log("AI response:", aiResponse);
+    // Convert the image response to a Uint8Array
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const imageArray = new Uint8Array(imageBuffer);
 
-      if (!aiResponse || !aiResponse.length) {
-        console.error("AI image generation failed: Empty response");
-        return new Response(JSON.stringify({
-          error: "AI image generation failed",
-          details: "Empty response from AI model"
-        }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
+    // Generate a unique filename
+    const filename = `cyberpunk-cat-${Date.now()}.png`;
 
-      const imageBuffer = aiResponse[0];
+    // Store the image in R2
+    await env.MY_BUCKET.put(filename, imageArray, {
+      httpMetadata: {
+        contentType: "image/png",
+      },
+    });
 
-      // Generate a unique filename using timestamp and random number
-      const timestamp = Date.now();
-      const randomNum = Math.floor(Math.random() * 10000);
-      const filename = `cyberpunk_cat_${timestamp}_${randomNum}.png`;
+    // Construct the R2 URL
+    const r2Url = `https://pub-5da2978a830945c7a746eff535eedeb7.r2.dev/${filename}`;
 
-      console.log("Uploading to R2...");
-      await env.MY_BUCKET.put(filename, imageBuffer, {
-        httpMetadata: { contentType: "image/png" },
-      });
-
-      const publicUrl = `https://pub-5da2978a830945c7a746eff535eedeb7.r2.dev/${filename}`;
-
-      return new Response(JSON.stringify({ url: publicUrl }), {
-        headers: {
-          "content-type": "application/json",
-        },
-      });
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      return new Response(JSON.stringify({
-        error: "An unexpected error occurred",
-        details: error.message
-      }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    // Return the R2 URL as the response
+    return new Response(JSON.stringify({ url: r2Url }), {
+      headers: {
+        "content-type": "application/json",
+      },
+    });
   },
 } satisfies ExportedHandler<Env>;
