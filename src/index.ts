@@ -4,10 +4,18 @@ export default {
       prompt: "cyberpunk cat",
     };
 
-    const imageBuffer = await env.AI.run(
+    const aiResponse = await env.AI.run(
       "@cf/stabilityai/stable-diffusion-xl-base-1.0",
       inputs,
     );
+
+    // Check if the AI response is successful
+    if (!aiResponse.ok) {
+      return new Response('AI image generation failed', { status: 500 });
+    }
+
+    // Get the image data as an ArrayBuffer
+    const imageBuffer = await aiResponse.arrayBuffer();
 
     // Generate a unique filename using timestamp and random number
     const timestamp = Date.now();
