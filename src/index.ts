@@ -11,21 +11,20 @@ export default {
         inputs,
       );
 
-      console.log("AI response status:", aiResponse.status);
+      console.log("AI response:", aiResponse);
 
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error("AI image generation failed:", errorText);
+      if (!aiResponse || !aiResponse.length) {
+        console.error("AI image generation failed: Empty response");
         return new Response(JSON.stringify({
           error: "AI image generation failed",
-          details: errorText
+          details: "Empty response from AI model"
         }), {
           status: 500,
           headers: { "Content-Type": "application/json" }
         });
       }
 
-      const imageBuffer = await aiResponse.arrayBuffer();
+      const imageBuffer = aiResponse[0];
 
       // Generate a unique filename using timestamp and random number
       const timestamp = Date.now();
